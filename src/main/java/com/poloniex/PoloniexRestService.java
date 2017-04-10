@@ -35,11 +35,11 @@ public class PoloniexRestService {
     private ObjectMapper objectMapper = new ObjectMapper();
 
     public List<PoloniexChartData> returnChartData(String currencyPair,
-                                                   long startTimeInMilliseconds,
+                                                   long startTimeInSeconds,
                                                    int candlePeriodInMinutes) {
         long time = System.currentTimeMillis();
         logger.debug("Requesting chart data for " + currencyPair +
-                " (startTimeInMilliseconds - " + startTimeInMilliseconds + ", candlePeriodInMinutes - " + candlePeriodInMinutes);
+                " (startTimeInSeconds - " + startTimeInSeconds + ", candlePeriodInMinutes - " + candlePeriodInMinutes);
         RestTemplate restTemplate = createRestTemplate();
 
         HttpHeaders headers = new HttpHeaders();
@@ -49,7 +49,7 @@ public class PoloniexRestService {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl("https://poloniex.com/public?command=returnChartData")
                 .queryParam("currencyPair", currencyPair)
                 .queryParam("period", candlePeriodInMinutes * 60)
-                .queryParam("start", startTimeInMilliseconds)
+                .queryParam("start", startTimeInSeconds)
                 .queryParam("end", currentTime);
 
         logger.debug("GetChartData url: " + builder.build().encode().toUriString());
