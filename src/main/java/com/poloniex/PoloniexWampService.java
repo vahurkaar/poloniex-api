@@ -63,10 +63,10 @@ public abstract class PoloniexWampService {
         logger.debug("Starting ticker process...");
         client.makeSubscription("ticker").subscribe(next -> {
             PoloniexTickerData tickerData = convertToData(next.arguments());
-            handleTickerData(tickerData);
+            onTickerData(tickerData);
         }, error -> {
             if (error != null) {
-                logger.info("ticker call Throwable response: " + error.toString());
+                logger.error("ticker call got exception: ", error);
             }
         });
     }
@@ -87,5 +87,5 @@ public abstract class PoloniexWampService {
         );
     }
 
-    protected abstract void handleTickerData(PoloniexTickerData tickerData);
+    protected abstract void onTickerData(PoloniexTickerData tickerData);
 }
