@@ -20,15 +20,15 @@ configurations {
 
 dependencies {
     compile group: 'org.springframework', name: 'spring-web', version: '4.3.7.RELEASE'
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.4.3'
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.4.3'
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.4.3'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.5.2'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.5.2'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.5.2'
     compile group: 'com.thoughtworks.xstream', name: 'xstream', version: '1.4.9'
     compile group: 'io.netty', name: 'netty-all', version: '4.0.24.Final'
     compile group: 'com.netflix.rxjava', name: 'rxjava-core', version: '0.20.4'
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
 
-//    testCompile("junit:junit")
+    testCompile("junit:junit:4.12")
 //    testCompile("org.mockito:mockito-core")
 }
 

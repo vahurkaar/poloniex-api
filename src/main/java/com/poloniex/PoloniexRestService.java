@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.poloniex.model.PoloniexBalance;
 import com.poloniex.model.PoloniexChartData;
 import com.poloniex.model.PoloniexCurrency;
+import com.poloniex.model.PoloniexOrderType;
 import com.poloniex.model.PoloniexTickerData;
+import com.poloniex.model.OrderResult;
 import com.poloniex.util.HmacSha1Signature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +16,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -149,6 +153,52 @@ public class PoloniexRestService {
         return balanceData;
     }
 
+    public OrderResult buy(String currencyPair, BigDecimal rate, BigDecimal amount, PoloniexOrderType orderType) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
+
+        String requestData = "command=buy&currencyPair=" + currencyPair +
+                "&rate=" + rate.setScale(10, RoundingMode.HALF_UP).toPlainString() +
+                "&amount=" + amount.setScale(10, RoundingMode.HALF_UP).toPlainString();
+        if (orderType != null) {
+            requestData += String.format("&%s=1", orderType.getParam());
+        }
+        requestData += "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+        logger.debug("Buy response: {}", orderResult);
+        return orderResult;
+    }
+
+    public OrderResult sell(String currencyPair, BigDecimal rate, BigDecimal amount, PoloniexOrderType orderType) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
+
+        String requestData = "command=sell&currencyPair=" + currencyPair +
+                "&rate=" + rate.setScale(10, RoundingMode.HALF_UP).toPlainString() +
+                "&amount=" + amount.setScale(10, RoundingMode.HALF_UP).toPlainString();
+        if (orderType != null) {
+            requestData += String.format("&%s=1", orderType.getParam());
+        }
+        requestData += "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+        logger.debug("Sell response: {}", orderResult);
+        return orderResult;
+    }
+
     private Long generateNonce() {
         return System.currentTimeMillis();
     }
@@ -178,7 +228,17 @@ public class PoloniexRestService {
     private RestTemplate createRestTemplate() {
         RestTemplate restTemplate = new RestTemplate();
         restTemplate.getMessageConverters().add(new StringHttpMessageConverter());
+        restTemplate.getMessageConverters().add(new FormHttpMessageConverter());
         restTemplate.getMessageConverters().add(new MappingJackson2HttpMessageConverter());
         return restTemplate;
+    }
+
+
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
+    }
+
+    public void setSecret(String secret) {
+        this.secret = secret;
     }
 }
