@@ -1,5 +1,6 @@
 package com.poloniex.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.poloniex.util.CurrencyOrderBookEntrySerializer;
 
@@ -11,6 +12,7 @@ import java.util.List;
  * @author Vahur Kaar (vahurkaar@gmail.com)
  * @since 16/04/2017
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CurrencyOrderBook {
 
     private List<Entry> asks;

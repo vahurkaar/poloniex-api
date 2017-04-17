@@ -176,8 +176,26 @@ public class PoloniexRestService {
                 HttpMethod.GET, entity, CurrencyOrderBook.class).getBody();
     }
 
-    public List<CurrencyOrderBook> returnOrderBook(Integer depth) {
-        return null;
+    public Map<String, CurrencyOrderBook> returnOrderBook(Integer depth) {
+        logger.debug("Requesting order book data for all currencies (depth - " + depth + ")");
+        RestTemplate restTemplate = createRestTemplate();
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(PUBLIC_API_URL)
+                .queryParam("command", "returnOrderBook")
+                .queryParam("currencyPair", "all")
+                .queryParam("depth", depth);
+
+        logger.debug("ReturnOrderBook url: " + builder.build().encode().toUriString());
+
+        Map responseData = restTemplate.getForObject(builder.build().encode().toUriString(), Map.class);
+        Map<String, CurrencyOrderBook> result = new HashMap<>();
+        for (Object entry : responseData.entrySet()) {
+            Map.Entry entryObject = (Map.Entry) entry;
+            CurrencyOrderBook value = objectMapper.convertValue(entryObject.getValue(), CurrencyOrderBook.class);
+            result.put(entryObject.getKey().toString(), value);
+        }
+
+        return result;
     }
 
     public OrderResult buy(String currencyPair, BigDecimal rate, BigDecimal amount, PoloniexOrderType orderType) {
