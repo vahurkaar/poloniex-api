@@ -2,12 +2,13 @@ package com.poloniex;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.poloniex.model.CurrencyOrderBook;
+import com.poloniex.model.OrderResult;
 import com.poloniex.model.PoloniexBalance;
 import com.poloniex.model.PoloniexChartData;
 import com.poloniex.model.PoloniexCurrency;
 import com.poloniex.model.PoloniexOrderType;
 import com.poloniex.model.PoloniexTickerData;
-import com.poloniex.model.OrderResult;
 import com.poloniex.util.HmacSha1Signature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,7 @@ import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -80,7 +82,8 @@ public class PoloniexRestService {
 
         List<PoloniexChartData> result = new ArrayList<>();
         try {
-            result = objectMapper.readValue(response.getBody(), new TypeReference<List<PoloniexChartData>>() { });
+            result = objectMapper.readValue(response.getBody(), new TypeReference<List<PoloniexChartData>>() {
+            });
             logger.debug("CharData: numberOfResults {}", result.size());
         } catch (IOException e) {
             logger.error("Exception when convertin result: ", e);
@@ -153,6 +156,30 @@ public class PoloniexRestService {
         return balanceData;
     }
 
+    public CurrencyOrderBook returnOrderBook(String currencyPair, Integer depth) {
+        logger.debug("Requesting order book data for " + currencyPair + " (depth - " + depth + ")");
+        RestTemplate restTemplate = createRestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(PUBLIC_API_URL)
+                .queryParam("command", "returnOrderBook")
+                .queryParam("currencyPair", currencyPair)
+                .queryParam("depth", depth);
+
+        logger.debug("ReturnOrderBook url: " + builder.build().encode().toUriString());
+        HttpEntity<?> entity = new HttpEntity<>(headers);
+
+        return restTemplate.exchange(
+                builder.build().encode().toUri(),
+                HttpMethod.GET, entity, CurrencyOrderBook.class).getBody();
+    }
+
+    public List<CurrencyOrderBook> returnOrderBook(Integer depth) {
+        return null;
+    }
+
     public OrderResult buy(String currencyPair, BigDecimal rate, BigDecimal amount, PoloniexOrderType orderType) {
         RestTemplate restTemplate = createRestTemplate();
         if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
@@ -171,8 +198,16 @@ public class PoloniexRestService {
         requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
-        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
-        logger.debug("Buy response: {}", orderResult);
+        OrderResult orderResult;
+        try {
+            orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+            logger.debug("Buy response: {}", orderResult);
+        } catch (RestClientException e) {
+            orderResult = new OrderResult();
+            logger.error("Error when buying {} {} with rate {}", amount, currencyPair.split("_")[1], rate);
+            logger.error("Got exception", e);
+        }
+
         return orderResult;
     }
 
@@ -194,8 +229,17 @@ public class PoloniexRestService {
         requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
-        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
-        logger.debug("Sell response: {}", orderResult);
+        OrderResult orderResult;
+        try {
+            orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+            logger.debug("Sell response: {}", orderResult);
+            return orderResult;
+        } catch (RestClientException e) {
+            orderResult = new OrderResult();
+            logger.error("Error when selling {} {} with rate {}", amount, currencyPair.split("_")[1], rate);
+            logger.error("Got exception", e);
+        }
+
         return orderResult;
     }
 

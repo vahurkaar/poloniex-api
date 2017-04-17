@@ -4,11 +4,16 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.poloniex.model.PoloniexTickerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import rx.Observable;
+import rx.schedulers.ImmediateScheduler;
+import ws.wamp.jawampa.PubSubData;
 import ws.wamp.jawampa.WampClient;
 import ws.wamp.jawampa.WampClientBuilder;
 
 import javax.annotation.PostConstruct;
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -24,6 +29,8 @@ public abstract class PoloniexWampService {
     private static final int MIN_RECONNECT_INTERVAL = 5; // sec
 
     private WampClient client;
+    private Observable<PubSubData> tickerSubscription;
+    private Map<String, Observable<PubSubData>> orderbookSubscriptions = new HashMap<>();
 
     @PostConstruct
     public void init() {
@@ -49,7 +56,7 @@ public abstract class PoloniexWampService {
 
                 if (status == WampClient.Status.Connected) {
                     // once it's connected, subscribe to Add events and request the comments.
-                    startTicker();
+                    onConnected();
                 }
             });
 
@@ -59,9 +66,14 @@ public abstract class PoloniexWampService {
         }
     }
 
-    private void startTicker() {
+    protected void onConnected() {
+        listenTicker();
+    }
+
+    protected void listenTicker() {
         logger.debug("Starting ticker process...");
-        client.makeSubscription("ticker").subscribe(next -> {
+        tickerSubscription = client.makeSubscription("ticker");
+        tickerSubscription.subscribe(next -> {
             PoloniexTickerData tickerData = convertToData(next.arguments());
             onTickerData(tickerData);
         }, error -> {
@@ -70,6 +82,28 @@ public abstract class PoloniexWampService {
             }
         });
     }
+
+    protected void listenOrderbook(String currencyPair) {
+        if (!orderbookSubscriptions.containsKey(currencyPair)) {
+            Observable<PubSubData> orderbookSubscription = client.makeSubscription(currencyPair);
+            orderbookSubscriptions.put(currencyPair, orderbookSubscription);
+
+            orderbookSubscription.subscribe(next -> {
+                logger.debug(currencyPair + ": " + next.arguments().toString());
+            }, error -> {
+                if (error != null) {
+                    logger.error("orderbook " + currencyPair + " call got exception", error);
+                }
+            });
+        }
+    }
+
+//    protected void stopListeningOnOrderbook(String currencyPair) {
+//        if (orderbookSubscriptions.containsKey(currencyPair)) {
+//            Observable<PubSubData> orderbookSubscription = orderbookSubscriptions.remove(currencyPair);
+//            orderbookSubscription.unsubscribeOn();
+//        }
+//    }
 
     private PoloniexTickerData convertToData(ArrayNode data) {
         return new PoloniexTickerData(

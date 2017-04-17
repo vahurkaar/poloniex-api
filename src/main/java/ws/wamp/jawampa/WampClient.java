@@ -1048,14 +1048,6 @@ public class WampClient {
         return Observable.create(new OnSubscribe<PubSubData>() {
             @Override
             public void call(final Subscriber<? super PubSubData> subscriber) {
-                try {
-                    UriValidator.validate(topic);
-                }
-                catch (WampError e) {
-                    subscriber.onError(e);
-                    return;
-                }
-
                 eventLoop.execute(new Runnable() {
                     @Override
                     public void run() {
