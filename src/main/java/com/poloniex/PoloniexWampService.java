@@ -1,18 +1,20 @@
 package com.poloniex;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.poloniex.model.PoloniexOrderBookTickerData;
 import com.poloniex.model.PoloniexTickerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.Observable;
-import rx.schedulers.ImmediateScheduler;
-import ws.wamp.jawampa.PubSubData;
+import rx.Subscription;
 import ws.wamp.jawampa.WampClient;
 import ws.wamp.jawampa.WampClientBuilder;
 
 import javax.annotation.PostConstruct;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -29,8 +31,10 @@ public abstract class PoloniexWampService {
     private static final int MIN_RECONNECT_INTERVAL = 5; // sec
 
     private WampClient client;
-    private Observable<PubSubData> tickerSubscription;
-    private Map<String, Observable<PubSubData>> orderbookSubscriptions = new HashMap<>();
+    private ObjectMapper objectMapper = new ObjectMapper();
+
+    private Subscription tickerSubscription;
+    private Map<String, Subscription> orderbookSubscriptions = new HashMap<>();
 
     @PostConstruct
     public void init() {
@@ -72,9 +76,8 @@ public abstract class PoloniexWampService {
 
     protected void listenTicker() {
         logger.debug("Starting ticker process...");
-        tickerSubscription = client.makeSubscription("ticker");
-        tickerSubscription.subscribe(next -> {
-            PoloniexTickerData tickerData = convertToData(next.arguments());
+        tickerSubscription = client.makeSubscription("ticker").subscribe(next -> {
+            PoloniexTickerData tickerData = convertToTickerData(next.arguments());
             onTickerData(tickerData);
         }, error -> {
             if (error != null) {
@@ -83,29 +86,49 @@ public abstract class PoloniexWampService {
         });
     }
 
+    protected void stopTicker() {
+        if (tickerSubscription != null && !tickerSubscription.isUnsubscribed()) {
+            tickerSubscription.unsubscribe();
+        }
+    }
+
     protected void listenOrderbook(String currencyPair) {
         if (!orderbookSubscriptions.containsKey(currencyPair)) {
-            Observable<PubSubData> orderbookSubscription = client.makeSubscription(currencyPair);
-            orderbookSubscriptions.put(currencyPair, orderbookSubscription);
-
-            orderbookSubscription.subscribe(next -> {
-                logger.debug(currencyPair + ": " + next.arguments().toString());
+            logger.debug("Subscribing to {} order book", currencyPair);
+            Subscription orderbookSubscription = client.makeSubscription(currencyPair).subscribe(next -> {
+                List<PoloniexOrderBookTickerData> orderBookTicker = convertToOrderBook(next.arguments());
+                onOrderBookTicker(currencyPair, orderBookTicker);
             }, error -> {
                 if (error != null) {
                     logger.error("orderbook " + currencyPair + " call got exception", error);
                 }
             });
+
+            orderbookSubscriptions.put(currencyPair, orderbookSubscription);
         }
     }
 
-//    protected void stopListeningOnOrderbook(String currencyPair) {
-//        if (orderbookSubscriptions.containsKey(currencyPair)) {
-//            Observable<PubSubData> orderbookSubscription = orderbookSubscriptions.remove(currencyPair);
-//            orderbookSubscription.unsubscribeOn();
-//        }
-//    }
+    protected void onOrderBookTicker(String currencyPair, List<PoloniexOrderBookTickerData> orderBookTickerData) {
+        logger.debug(currencyPair + ": " + orderBookTickerData);
+    }
 
-    private PoloniexTickerData convertToData(ArrayNode data) {
+    public void stopOrderbook(String currencyPair) {
+        logger.debug("Unsubscribing from {} order book", currencyPair);
+        if (orderbookSubscriptions.containsKey(currencyPair)) {
+            Subscription orderbookSubscription = orderbookSubscriptions.remove(currencyPair);
+            orderbookSubscription.unsubscribe();
+        }
+    }
+
+    protected List<PoloniexOrderBookTickerData> convertToOrderBook(ArrayNode data) {
+        List<PoloniexOrderBookTickerData> result = new ArrayList<>();
+        for (int i = 0; i < data.size(); i++) {
+            result.add(objectMapper.convertValue(data.get(0), PoloniexOrderBookTickerData.class));
+        }
+        return result;
+    }
+
+    private PoloniexTickerData convertToTickerData(ArrayNode data) {
         return new PoloniexTickerData(
                 null,
                 data.get(0).asText(),

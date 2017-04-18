@@ -2,7 +2,7 @@ package com.poloniex;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.poloniex.model.CurrencyOrderBook;
+import com.poloniex.model.PoloniexOrderBook;
 import com.poloniex.model.OrderResult;
 import com.poloniex.model.PoloniexBalance;
 import com.poloniex.model.PoloniexChartData;
@@ -156,7 +156,7 @@ public class PoloniexRestService {
         return balanceData;
     }
 
-    public CurrencyOrderBook returnOrderBook(String currencyPair, Integer depth) {
+    public PoloniexOrderBook returnOrderBook(String currencyPair, Integer depth) {
         logger.debug("Requesting order book data for " + currencyPair + " (depth - " + depth + ")");
         RestTemplate restTemplate = createRestTemplate();
 
@@ -173,10 +173,10 @@ public class PoloniexRestService {
 
         return restTemplate.exchange(
                 builder.build().encode().toUri(),
-                HttpMethod.GET, entity, CurrencyOrderBook.class).getBody();
+                HttpMethod.GET, entity, PoloniexOrderBook.class).getBody();
     }
 
-    public Map<String, CurrencyOrderBook> returnOrderBook(Integer depth) {
+    public Map<String, PoloniexOrderBook> returnOrderBook(Integer depth) {
         logger.debug("Requesting order book data for all currencies (depth - " + depth + ")");
         long startTime = System.currentTimeMillis();
         RestTemplate restTemplate = createRestTemplate();
@@ -189,10 +189,10 @@ public class PoloniexRestService {
         logger.debug("ReturnOrderBook url: " + builder.build().encode().toUriString());
 
         Map responseData = restTemplate.getForObject(builder.build().encode().toUriString(), Map.class);
-        Map<String, CurrencyOrderBook> result = new HashMap<>();
+        Map<String, PoloniexOrderBook> result = new HashMap<>();
         for (Object entry : responseData.entrySet()) {
             Map.Entry entryObject = (Map.Entry) entry;
-            CurrencyOrderBook value = objectMapper.convertValue(entryObject.getValue(), CurrencyOrderBook.class);
+            PoloniexOrderBook value = objectMapper.convertValue(entryObject.getValue(), PoloniexOrderBook.class);
             result.put(entryObject.getKey().toString(), value);
         }
 

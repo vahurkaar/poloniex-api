@@ -13,7 +13,7 @@ import java.util.List;
  * @since 16/04/2017
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class CurrencyOrderBook {
+public class PoloniexOrderBook {
 
     private List<Entry> asks;
     private List<Entry> bids;
