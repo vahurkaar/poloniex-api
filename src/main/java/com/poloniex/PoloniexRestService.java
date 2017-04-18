@@ -178,6 +178,7 @@ public class PoloniexRestService {
 
     public Map<String, CurrencyOrderBook> returnOrderBook(Integer depth) {
         logger.debug("Requesting order book data for all currencies (depth - " + depth + ")");
+        long startTime = System.currentTimeMillis();
         RestTemplate restTemplate = createRestTemplate();
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(PUBLIC_API_URL)
@@ -195,6 +196,7 @@ public class PoloniexRestService {
             result.put(entryObject.getKey().toString(), value);
         }
 
+        logger.debug("Request took {} ms", System.currentTimeMillis() - startTime);
         return result;
     }
 

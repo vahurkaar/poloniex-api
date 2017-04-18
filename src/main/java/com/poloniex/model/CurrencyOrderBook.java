@@ -18,6 +18,23 @@ public class CurrencyOrderBook {
     private List<Entry> asks;
     private List<Entry> bids;
 
+    public BigDecimal getTotalAskVolume() {
+        return calculateVolumeSum(asks);
+    }
+
+    public BigDecimal getTotalBidVolume() {
+        return calculateVolumeSum(bids);
+    }
+
+    private BigDecimal calculateVolumeSum(List<Entry> entries) {
+        BigDecimal result = BigDecimal.ZERO;
+        for (Entry bid : entries) {
+            result = result.add(bid.getVolume());
+        }
+
+        return result;
+    }
+
     public List<Entry> getAsks() {
         if (asks == null) {
             asks = new ArrayList<>();
@@ -38,6 +55,9 @@ public class CurrencyOrderBook {
 
     public void setBids(List<Entry> bids) {
         this.bids = bids;
+        for (Entry bid : bids) {
+            bid.volume = bid.volume.multiply(bid.price);
+        }
     }
 
     @Override
