@@ -1,22 +1,21 @@
 package com.poloniex.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.poloniex.util.CurrencyOrderBookEntrySerializer;
+import com.poloniex.util.CurrencyOrderBookDeserializer;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * @author Vahur Kaar (vahurkaar@gmail.com)
  * @since 16/04/2017
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonDeserialize(using = CurrencyOrderBookDeserializer.class)
 public class PoloniexOrderBook {
 
-    private List<Entry> asks;
-    private List<Entry> bids;
+    private TreeMap<BigDecimal, BigDecimal> asks;
+    private TreeMap<BigDecimal, BigDecimal> bids;
 
     public BigDecimal getTotalAskVolume() {
         return calculateVolumeSum(asks);
@@ -26,38 +25,35 @@ public class PoloniexOrderBook {
         return calculateVolumeSum(bids);
     }
 
-    private BigDecimal calculateVolumeSum(List<Entry> entries) {
+    private BigDecimal calculateVolumeSum(Map<BigDecimal, BigDecimal> entries) {
         BigDecimal result = BigDecimal.ZERO;
-        for (Entry bid : entries) {
-            result = result.add(bid.getVolume());
+        for (BigDecimal volume : entries.values()) {
+            result = result.add(volume);
         }
 
         return result;
     }
 
-    public List<Entry> getAsks() {
+    public TreeMap<BigDecimal, BigDecimal> getAsks() {
         if (asks == null) {
-            asks = new ArrayList<>();
+            asks = new TreeMap<>();
         }
         return asks;
     }
 
-    public void setAsks(List<Entry> asks) {
+    public void setAsks(TreeMap<BigDecimal, BigDecimal> asks) {
         this.asks = asks;
     }
 
-    public List<Entry> getBids() {
+    public TreeMap<BigDecimal, BigDecimal> getBids() {
         if (bids == null) {
-            bids = new ArrayList<>();
+            bids = new TreeMap<>((o1, o2) -> o2.compareTo(o1));
         }
         return bids;
     }
 
-    public void setBids(List<Entry> bids) {
+    public void setBids(TreeMap<BigDecimal, BigDecimal> bids) {
         this.bids = bids;
-        for (Entry bid : bids) {
-            bid.volume = bid.volume.multiply(bid.price);
-        }
     }
 
     @Override
@@ -68,30 +64,4 @@ public class PoloniexOrderBook {
                 '}';
     }
 
-    @JsonDeserialize(using = CurrencyOrderBookEntrySerializer.class)
-    public static class Entry {
-        private BigDecimal price;
-        private BigDecimal volume;
-
-        public Entry(BigDecimal price, BigDecimal volume) {
-            this.price = price;
-            this.volume = volume;
-        }
-
-        public BigDecimal getPrice() {
-            return price;
-        }
-
-        public BigDecimal getVolume() {
-            return volume;
-        }
-
-        @Override
-        public String toString() {
-            return "Entry{" +
-                    "price=" + price +
-                    ", volume=" + volume +
-                    '}';
-        }
-    }
 }

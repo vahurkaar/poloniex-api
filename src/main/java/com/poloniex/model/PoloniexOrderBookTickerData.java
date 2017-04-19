@@ -8,17 +8,26 @@ import java.math.BigDecimal;
  */
 public class PoloniexOrderBookTickerData {
 
-    private static final String MODIFY = "orderBookModify";
-    private static final String REMOVE = "orderBookRemove";
+    public static final String MODIFY = "orderBookModify";
+    public static final String REMOVE = "orderBookRemove";
 
+    private String currencyPair; // Transient
     private String type;
     private Data data;
 
     public PoloniexOrderBookTickerData() {}
 
-    public PoloniexOrderBookTickerData(String type, Data data) {
+    public PoloniexOrderBookTickerData(String currencyPair, String type, Data data) {
         this.type = type;
         this.data = data;
+    }
+
+    public String getCurrencyPair() {
+        return currencyPair;
+    }
+
+    public void setCurrencyPair(String currencyPair) {
+        this.currencyPair = currencyPair;
     }
 
     public String getType() {
