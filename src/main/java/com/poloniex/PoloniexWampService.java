@@ -108,9 +108,7 @@ public abstract class PoloniexWampService {
         }
     }
 
-    protected void onOrderBookTicker(String currencyPair, List<PoloniexOrderBookTickerData> orderBookTickerData) {
-        logger.debug(currencyPair + ": " + orderBookTickerData);
-    }
+    protected abstract void onOrderBookTicker(String currencyPair, List<PoloniexOrderBookTickerData> orderBookTickerData);
 
     public void stopOrderbook(String currencyPair) {
         logger.debug("Unsubscribing from {} order book", currencyPair);
