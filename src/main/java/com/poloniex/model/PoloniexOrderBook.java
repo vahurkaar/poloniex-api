@@ -14,6 +14,7 @@ import java.util.TreeMap;
 @JsonDeserialize(using = CurrencyOrderBookDeserializer.class)
 public class PoloniexOrderBook {
 
+    private String currencyPair;
     private TreeMap<BigDecimal, BigDecimal> asks;
     private TreeMap<BigDecimal, BigDecimal> bids;
 
@@ -32,6 +33,14 @@ public class PoloniexOrderBook {
         }
 
         return result;
+    }
+
+    public String getCurrencyPair() {
+        return currencyPair;
+    }
+
+    public void setCurrencyPair(String currencyPair) {
+        this.currencyPair = currencyPair;
     }
 
     public TreeMap<BigDecimal, BigDecimal> getAsks() {

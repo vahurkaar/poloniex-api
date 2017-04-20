@@ -2,6 +2,7 @@ package com.poloniex;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.poloniex.model.PoloniexOrder;
 import com.poloniex.model.PoloniexOrderBook;
 import com.poloniex.model.OrderResult;
 import com.poloniex.model.PoloniexBalance;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -156,6 +158,32 @@ public class PoloniexRestService {
         return balanceData;
     }
 
+    public Map<String, List<PoloniexOrder>> returnOpenOrders() {
+        return returnOpenOrders(null);
+    }
+
+    public Map<String, List<PoloniexOrder>> returnOpenOrders(String currencyPair) {
+        Map<String, List<PoloniexOrder>> openOrders = new HashMap<>();
+        RestTemplate restTemplate = createRestTemplate();
+
+        if (currencyPair == null) currencyPair = "all";
+        String requestData = "command=returnOpenOrders&currencyPair=" + currencyPair + "&nonce=" + generateNonce();
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        Map responseData = restTemplate.postForObject(TRADING_API_URL, entity, Map.class);
+        for (Object entry : responseData.entrySet()) {
+            Map.Entry entryObject = (Map.Entry) entry;
+            PoloniexOrder[] openOrdersArray = objectMapper.convertValue(entryObject.getValue(), PoloniexOrder[].class);
+            openOrders.put(entryObject.getKey().toString(), Arrays.asList(openOrdersArray));
+        }
+
+        return openOrders;
+    }
+
     public PoloniexOrderBook returnOrderBook(String currencyPair, Integer depth) {
         logger.debug("Requesting order book data for " + currencyPair + " (depth - " + depth + ")");
         RestTemplate restTemplate = createRestTemplate();
@@ -193,6 +221,7 @@ public class PoloniexRestService {
         for (Object entry : responseData.entrySet()) {
             Map.Entry entryObject = (Map.Entry) entry;
             PoloniexOrderBook value = objectMapper.convertValue(entryObject.getValue(), PoloniexOrderBook.class);
+            value.setCurrencyPair(entryObject.getKey().toString());
             result.put(entryObject.getKey().toString(), value);
         }
 
