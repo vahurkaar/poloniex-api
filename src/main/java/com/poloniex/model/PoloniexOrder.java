@@ -9,25 +9,25 @@ import java.math.BigDecimal;
  */
 public class PoloniexOrder implements Serializable {
 
-    private Integer orderNumber;
+    private String orderNumber;
     private String type;
     private BigDecimal amount;
     private BigDecimal rate;
 
     public PoloniexOrder() {}
 
-    public PoloniexOrder(Integer orderNumber, String type, BigDecimal amount, BigDecimal rate) {
+    public PoloniexOrder(String orderNumber, String type, BigDecimal amount, BigDecimal rate) {
         this.orderNumber = orderNumber;
         this.type = type;
         this.amount = amount;
         this.rate = rate;
     }
 
-    public Integer getOrderNumber() {
+    public String getOrderNumber() {
         return orderNumber;
     }
 
-    public void setOrderNumber(Integer orderNumber) {
+    public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
     }
 

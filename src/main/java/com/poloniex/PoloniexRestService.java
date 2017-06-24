@@ -10,6 +10,7 @@ import com.poloniex.model.PoloniexChartData;
 import com.poloniex.model.PoloniexCurrency;
 import com.poloniex.model.PoloniexOrderType;
 import com.poloniex.model.PoloniexTickerData;
+import com.poloniex.model.Trade;
 import com.poloniex.util.HmacSha1Signature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -290,6 +291,31 @@ public class PoloniexRestService {
         }
 
         return orderResult;
+    }
+
+    public Trade[] returnOrderTrades(String orderNumber) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (orderNumber == null) throw new IllegalArgumentException("Order number cannot be null");
+
+        String requestData = "command=returnOrderTrades&orderNumber=" + orderNumber + "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        Trade[] trades;
+        try {
+            trades = restTemplate.postForObject(TRADING_API_URL, entity, Trade[].class);
+            logger.debug("Open trades response: {}", trades);
+            return trades;
+        } catch (RestClientException e) {
+            trades = new Trade[] {};
+            logger.debug("Failed to find any trades for order {}", orderNumber);
+        }
+
+        return trades;
     }
 
     private Long generateNonce() {

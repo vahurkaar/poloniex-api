@@ -121,7 +121,7 @@ public abstract class PoloniexWampService {
     protected List<PoloniexOrderBookTickerData> convertToOrderBook(ArrayNode data) {
         List<PoloniexOrderBookTickerData> result = new ArrayList<>();
         for (int i = 0; i < data.size(); i++) {
-            result.add(objectMapper.convertValue(data.get(0), PoloniexOrderBookTickerData.class));
+            result.add(objectMapper.convertValue(data.get(i), PoloniexOrderBookTickerData.class));
         }
         return result;
     }

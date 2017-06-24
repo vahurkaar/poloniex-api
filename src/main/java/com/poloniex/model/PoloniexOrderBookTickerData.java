@@ -1,6 +1,9 @@
 package com.poloniex.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 
 /**
  * @author Vahur Kaar (<a href="mailto:vahur.kaar@tieto.com">vahur.kaar@tieto.com</a>)
@@ -56,16 +59,31 @@ public class PoloniexOrderBookTickerData {
     }
 
     public static class Data {
+        private String tradeID;
         private String type;
         private BigDecimal rate;
         private BigDecimal amount;
+        private BigDecimal total;
+        @JsonFormat(shape= JsonFormat.Shape.STRING, pattern="yyyy-MM-dd HH:mm:ss")
+        private Timestamp date;
 
         public Data() {}
 
-        public Data(String type, BigDecimal rate, BigDecimal amount) {
+        public Data(String tradeID, String type, BigDecimal rate, BigDecimal amount, BigDecimal total, Timestamp date) {
+            this.tradeID = tradeID;
             this.type = type;
             this.rate = rate;
             this.amount = amount;
+            this.total = total;
+            this.date = date;
+        }
+
+        public String getTradeID() {
+            return tradeID;
+        }
+
+        public void setTradeID(String tradeID) {
+            this.tradeID = tradeID;
         }
 
         public String getType() {
@@ -88,16 +106,35 @@ public class PoloniexOrderBookTickerData {
             return amount;
         }
 
+        public BigDecimal getTotal() {
+            return total;
+        }
+
+        public void setTotal(BigDecimal total) {
+            this.total = total;
+        }
+
         public void setAmount(BigDecimal amount) {
             this.amount = amount;
+        }
+
+        public Timestamp getDate() {
+            return date;
+        }
+
+        public void setDate(Timestamp date) {
+            this.date = date;
         }
 
         @Override
         public String toString() {
             final StringBuilder sb = new StringBuilder("Data{");
-            sb.append("type='").append(type).append('\'');
+            sb.append("tradeID=").append(tradeID);
+            sb.append(", date=").append(date);
+            sb.append(", type='").append(type).append('\'');
             sb.append(", rate=").append(rate);
             sb.append(", amount=").append(amount);
+            sb.append(", total=").append(total);
             sb.append('}');
             return sb.toString();
         }
