@@ -1,17 +1,26 @@
 package com.poloniex.model;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.poloniex.util.OrderResultDeserializer;
+
+import java.util.Arrays;
 
 /**
  * @author Vahur Kaar (vahurkaar@gmail.com)
  * @since 12/04/2017
  */
+@JsonDeserialize(using = OrderResultDeserializer.class)
 public class OrderResult {
+
+    private Integer success;
+
+    private String message;
+
+    private String error;
 
     private String orderNumber;
 
-    private List<Trade> resultingTrades;
+    private Trade[] resultingTrades;
 
     public String getOrderNumber() {
         return orderNumber;
@@ -21,22 +30,46 @@ public class OrderResult {
         this.orderNumber = orderNumber;
     }
 
-    public List<Trade> getResultingTrades() {
-        if (resultingTrades == null) {
-            resultingTrades = new ArrayList<>();
-        }
+    public Trade[] getResultingTrades() {
         return resultingTrades;
     }
 
-    public void setResultingTrades(List<Trade> resultingTrades) {
+    public void setResultingTrades(Trade[] resultingTrades) {
         this.resultingTrades = resultingTrades;
+    }
+
+    public Integer getSuccess() {
+        return success;
+    }
+
+    public void setSuccess(Integer success) {
+        this.success = success;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public String getError() {
+        return error;
+    }
+
+    public void setError(String error) {
+        this.error = error;
     }
 
     @Override
     public String toString() {
         return "OrderResult{" +
-                "orderNumber='" + orderNumber + '\'' +
-                ", resultingTrades=" + resultingTrades +
+                "success=" + success +
+                ", message='" + message + '\'' +
+                ", error='" + error + '\'' +
+                ", orderNumber='" + orderNumber + '\'' +
+                ", resultingTrades=" + Arrays.toString(resultingTrades) +
                 '}';
     }
 }

@@ -2,6 +2,8 @@ package com.poloniex;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.poloniex.model.PoloniexMarginAccountSummary;
+import com.poloniex.model.PoloniexMarginPosition;
 import com.poloniex.model.PoloniexOrder;
 import com.poloniex.model.PoloniexOrderBook;
 import com.poloniex.model.OrderResult;
@@ -132,6 +134,51 @@ public class PoloniexRestService {
         return result;
     }
 
+    public PoloniexOrderBook returnOrderBook(String currencyPair, Integer depth) {
+        logger.debug("Requesting order book data for " + currencyPair + " (depth - " + depth + ")");
+        RestTemplate restTemplate = createRestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(PUBLIC_API_URL)
+                .queryParam("command", "returnOrderBook")
+                .queryParam("currencyPair", currencyPair)
+                .queryParam("depth", depth);
+
+        logger.debug("ReturnOrderBook url: " + builder.build().encode().toUriString());
+        HttpEntity<?> entity = new HttpEntity<>(headers);
+
+        return restTemplate.exchange(
+                builder.build().encode().toUri(),
+                HttpMethod.GET, entity, PoloniexOrderBook.class).getBody();
+    }
+
+    public Map<String, PoloniexOrderBook> returnOrderBook(Integer depth) {
+        logger.debug("Requesting order book data for all currencies (depth - " + depth + ")");
+        long startTime = System.currentTimeMillis();
+        RestTemplate restTemplate = createRestTemplate();
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(PUBLIC_API_URL)
+                .queryParam("command", "returnOrderBook")
+                .queryParam("currencyPair", "all")
+                .queryParam("depth", depth);
+
+        logger.debug("ReturnOrderBook url: " + builder.build().encode().toUriString());
+
+        Map responseData = restTemplate.getForObject(builder.build().encode().toUriString(), Map.class);
+        Map<String, PoloniexOrderBook> result = new HashMap<>();
+        for (Object entry : responseData.entrySet()) {
+            Map.Entry entryObject = (Map.Entry) entry;
+            PoloniexOrderBook value = objectMapper.convertValue(entryObject.getValue(), PoloniexOrderBook.class);
+            value.setCurrencyPair(entryObject.getKey().toString());
+            result.put(entryObject.getKey().toString(), value);
+        }
+
+        logger.debug("Request took {} ms", System.currentTimeMillis() - startTime);
+        return result;
+    }
+
     public Map<String, PoloniexBalance> returnCompleteBalances() {
         Map<String, PoloniexBalance> balanceData = new HashMap<>();
         RestTemplate restTemplate = createRestTemplate();
@@ -185,114 +232,6 @@ public class PoloniexRestService {
         return openOrders;
     }
 
-    public PoloniexOrderBook returnOrderBook(String currencyPair, Integer depth) {
-        logger.debug("Requesting order book data for " + currencyPair + " (depth - " + depth + ")");
-        RestTemplate restTemplate = createRestTemplate();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
-
-        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(PUBLIC_API_URL)
-                .queryParam("command", "returnOrderBook")
-                .queryParam("currencyPair", currencyPair)
-                .queryParam("depth", depth);
-
-        logger.debug("ReturnOrderBook url: " + builder.build().encode().toUriString());
-        HttpEntity<?> entity = new HttpEntity<>(headers);
-
-        return restTemplate.exchange(
-                builder.build().encode().toUri(),
-                HttpMethod.GET, entity, PoloniexOrderBook.class).getBody();
-    }
-
-    public Map<String, PoloniexOrderBook> returnOrderBook(Integer depth) {
-        logger.debug("Requesting order book data for all currencies (depth - " + depth + ")");
-        long startTime = System.currentTimeMillis();
-        RestTemplate restTemplate = createRestTemplate();
-
-        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(PUBLIC_API_URL)
-                .queryParam("command", "returnOrderBook")
-                .queryParam("currencyPair", "all")
-                .queryParam("depth", depth);
-
-        logger.debug("ReturnOrderBook url: " + builder.build().encode().toUriString());
-
-        Map responseData = restTemplate.getForObject(builder.build().encode().toUriString(), Map.class);
-        Map<String, PoloniexOrderBook> result = new HashMap<>();
-        for (Object entry : responseData.entrySet()) {
-            Map.Entry entryObject = (Map.Entry) entry;
-            PoloniexOrderBook value = objectMapper.convertValue(entryObject.getValue(), PoloniexOrderBook.class);
-            value.setCurrencyPair(entryObject.getKey().toString());
-            result.put(entryObject.getKey().toString(), value);
-        }
-
-        logger.debug("Request took {} ms", System.currentTimeMillis() - startTime);
-        return result;
-    }
-
-    public OrderResult buy(String currencyPair, BigDecimal rate, BigDecimal amount, PoloniexOrderType orderType) {
-        RestTemplate restTemplate = createRestTemplate();
-        if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
-
-        String requestData = "command=buy&currencyPair=" + currencyPair +
-                "&rate=" + rate.setScale(10, RoundingMode.HALF_UP).toPlainString() +
-                "&amount=" + amount.setScale(10, RoundingMode.HALF_UP).toPlainString();
-        if (orderType != null) {
-            requestData += String.format("&%s=1", orderType.getParam());
-        }
-        requestData += "&nonce=" + generateNonce();
-
-        HttpHeaders requestHeaders = new HttpHeaders();
-        addSecurityHeaders(requestData, requestHeaders);
-        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
-        OrderResult orderResult;
-        try {
-            orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
-            logger.debug("Buy response: {}", orderResult);
-        } catch (RestClientException e) {
-            orderResult = new OrderResult();
-            logger.error("Error when buying {} {} with rate {}", amount, currencyPair.split("_")[1], rate);
-            logger.error("Got exception", e);
-        }
-
-        return orderResult;
-    }
-
-    public OrderResult sell(String currencyPair, BigDecimal rate, BigDecimal amount, PoloniexOrderType orderType) {
-        RestTemplate restTemplate = createRestTemplate();
-        if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
-
-        String requestData = "command=sell&currencyPair=" + currencyPair +
-                "&rate=" + rate.setScale(10, RoundingMode.HALF_UP).toPlainString() +
-                "&amount=" + amount.setScale(10, RoundingMode.HALF_UP).toPlainString();
-        if (orderType != null) {
-            requestData += String.format("&%s=1", orderType.getParam());
-        }
-        requestData += "&nonce=" + generateNonce();
-
-        HttpHeaders requestHeaders = new HttpHeaders();
-        addSecurityHeaders(requestData, requestHeaders);
-        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
-        OrderResult orderResult;
-        try {
-            orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
-            logger.debug("Sell response: {}", orderResult);
-            return orderResult;
-        } catch (RestClientException e) {
-            orderResult = new OrderResult();
-            logger.error("Error when selling {} {} with rate {}", amount, currencyPair.split("_")[1], rate);
-            logger.error("Got exception", e);
-        }
-
-        return orderResult;
-    }
-
     public Trade[] returnOrderTrades(String orderNumber) {
         RestTemplate restTemplate = createRestTemplate();
         if (orderNumber == null) throw new IllegalArgumentException("Order number cannot be null");
@@ -305,17 +244,246 @@ public class PoloniexRestService {
         requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
-        Trade[] trades;
-        try {
-            trades = restTemplate.postForObject(TRADING_API_URL, entity, Trade[].class);
-            logger.debug("Open trades response: {}", trades);
-            return trades;
-        } catch (RestClientException e) {
-            trades = new Trade[] {};
-            logger.debug("Failed to find any trades for order {}", orderNumber);
+        Trade[] trades = restTemplate.postForObject(TRADING_API_URL, entity, Trade[].class);
+
+        logger.debug("Open trades response: {}", trades);
+        return trades;
+    }
+
+    public OrderResult buy(String currencyPair, BigDecimal rate, BigDecimal amount, PoloniexOrderType orderType) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
+
+        String requestData = "command=buy&currencyPair=" + currencyPair +
+                "&rate=" + rate.setScale(8, RoundingMode.HALF_UP).toPlainString() +
+                "&amount=" + amount.setScale(8, RoundingMode.HALF_UP).toPlainString();
+        if (orderType != null) {
+            requestData += String.format("&%s=1", orderType.getParam());
+        }
+        requestData += "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+
+        logger.debug("Buy response: {}", orderResult);
+        return orderResult;
+    }
+
+    public OrderResult sell(String currencyPair, BigDecimal rate, BigDecimal amount, PoloniexOrderType orderType) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
+
+        String requestData = "command=sell&currencyPair=" + currencyPair +
+                "&rate=" + rate.setScale(8, RoundingMode.HALF_UP).toPlainString() +
+                "&amount=" + amount.setScale(8, RoundingMode.HALF_UP).toPlainString();
+        if (orderType != null) {
+            requestData += String.format("&%s=1", orderType.getParam());
+        }
+        requestData += "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+
+        logger.debug("Sell response: {}", orderResult);
+        return orderResult;
+    }
+
+    public OrderResult cancelOrder(String orderNumber) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (orderNumber == null) throw new IllegalArgumentException("OrderNumber cannot be null");
+
+        String requestData = "command=cancelOrder&orderNumber=" + orderNumber + "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+
+        logger.debug("Cancel order response: {}", orderResult);
+        return orderResult;
+    }
+
+    public OrderResult moveOrder(String orderNumber, BigDecimal newRate) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (orderNumber == null) throw new IllegalArgumentException("OrderNumber cannot be null");
+
+        String requestData = "command=moveOrder&orderNumber=" + orderNumber + "&rate=" + newRate + "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+
+        logger.debug("Move order response: {}", orderResult);
+        return orderResult;
+    }
+
+    public Map<String, Map<String, BigDecimal>> returnTradableBalances() {
+        RestTemplate restTemplate = createRestTemplate();
+
+        String requestData = "command=returnTradableBalances";
+        requestData += "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        Map<String, Map<String, BigDecimal>> tradableBalances = new HashMap<>();
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        Map responseData = restTemplate.postForObject(TRADING_API_URL, entity, Map.class);
+        for (Object entry : responseData.entrySet()) {
+            Map.Entry entryObject = (Map.Entry) entry;
+            Map<String, String> entryTradableBalances = (Map<String, String>) entryObject.getValue();
+            Map<String, BigDecimal> convertedTradableBalances = new HashMap<>();
+            entryTradableBalances.forEach((key, value) -> convertedTradableBalances.put(key, new BigDecimal(value)));
+            tradableBalances.put(entryObject.getKey().toString(), convertedTradableBalances);
         }
 
-        return trades;
+        return tradableBalances;
+    }
+
+    public PoloniexMarginAccountSummary returnMarginAccountSummary() {
+        RestTemplate restTemplate = createRestTemplate();
+
+        String requestData = "command=returnMarginAccountSummary&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        PoloniexMarginAccountSummary marginAccountSummary = restTemplate.postForObject(TRADING_API_URL, entity, PoloniexMarginAccountSummary.class);
+        logger.debug("Margin account summary response: {}", marginAccountSummary);
+        return marginAccountSummary;
+    }
+
+    public OrderResult marginBuy(String currencyPair, BigDecimal rate, BigDecimal amount) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
+
+        String requestData = "command=marginBuy&currencyPair=" + currencyPair +
+                "&rate=" + rate.setScale(8, RoundingMode.HALF_UP).toPlainString() +
+                "&amount=" + amount.setScale(8, RoundingMode.HALF_UP).toPlainString();
+        requestData += "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+
+        logger.debug("Margin buy response: {}", orderResult);
+        return orderResult;
+    }
+
+    public OrderResult marginSell(String currencyPair, BigDecimal rate, BigDecimal amount) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
+
+        String requestData = "command=marginSell&currencyPair=" + currencyPair +
+                "&rate=" + rate.setScale(8, RoundingMode.HALF_UP).toPlainString() +
+                "&amount=" + amount.setScale(8, RoundingMode.HALF_UP).toPlainString();
+        requestData += "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+
+        logger.debug("Margin sell response: {}", orderResult);
+        return orderResult;
+    }
+
+    public Map<String, PoloniexMarginPosition> getMarginPosition() {
+        RestTemplate restTemplate = createRestTemplate();
+
+        String requestData = "command=getMarginPosition&currencyPair=all";
+        requestData += "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        Map<String, PoloniexMarginPosition> marginPositions = new HashMap<>();
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        Map responseData = restTemplate.postForObject(TRADING_API_URL, entity, Map.class);
+        for (Object entry : responseData.entrySet()) {
+            Map.Entry entryObject = (Map.Entry) entry;
+            PoloniexMarginPosition marginPosition = objectMapper.convertValue(entryObject.getValue(), PoloniexMarginPosition.class);
+            marginPositions.put(entryObject.getKey().toString(), marginPosition);
+        }
+
+        return marginPositions;
+    }
+
+    public PoloniexMarginPosition getMarginPosition(String currencyPair) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
+
+        String requestData = "command=getMarginPosition&currencyPair=" + currencyPair;
+        requestData += "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        PoloniexMarginPosition marginPosition;
+        try {
+            marginPosition = restTemplate.postForObject(TRADING_API_URL, entity, PoloniexMarginPosition.class);
+            logger.debug("Get margin position response: {}", marginPosition);
+            return marginPosition;
+        } catch (RestClientException e) {
+            marginPosition = new PoloniexMarginPosition();
+            logger.error("Error when fetching margin position for {} ", currencyPair);
+            logger.error("Got exception", e);
+        }
+
+        return marginPosition;
+    }
+
+    public OrderResult closeMarginPosition(String currencyPair) {
+        RestTemplate restTemplate = createRestTemplate();
+        if (currencyPair == null) throw new IllegalArgumentException("Currency pair cannot be null");
+
+        String requestData = "command=closeMarginPosition&currencyPair=" + currencyPair;
+        requestData += "&nonce=" + generateNonce();
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        addSecurityHeaders(requestData, requestHeaders);
+        requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        requestHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<String> entity = new HttpEntity<>(requestData, requestHeaders);
+        OrderResult orderResult = restTemplate.postForObject(TRADING_API_URL, entity, OrderResult.class);
+
+        logger.debug("Close margin position response: {}", orderResult);
+        return orderResult;
     }
 
     private Long generateNonce() {

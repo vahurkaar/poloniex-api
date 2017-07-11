@@ -19,6 +19,7 @@ public class Trade {
     private BigDecimal amount;
     private BigDecimal rate;
     private BigDecimal total;
+    private BigDecimal fee;
     private String type;
 
 
@@ -70,6 +71,14 @@ public class Trade {
         this.type = type;
     }
 
+    public BigDecimal getFee() {
+        return fee;
+    }
+
+    public void setFee(BigDecimal fee) {
+        this.fee = fee;
+    }
+
     @Override
     public String toString() {
         return "Trade{" +
@@ -78,6 +87,7 @@ public class Trade {
                 ", amount=" + amount +
                 ", rate=" + rate +
                 ", total=" + total +
+                ", fee=" + fee +
                 ", type='" + type + '\'' +
                 '}';
     }
